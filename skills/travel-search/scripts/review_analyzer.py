@@ -791,6 +791,40 @@ def compare_neighborhoods(reviews: List[NeighborhoodReview], trip_type: str) -> 
     return "\n".join(lines)
 
 
+def detect_neighborhood_from_coords(
+    destination: str,
+    lat: float,
+    lng: float
+) -> Optional[str]:
+    """
+    Detect which neighborhood a listing is in based on its coordinates.
+    Returns neighborhood name if found, None otherwise.
+
+    Uses the NEIGHBORHOOD_BOUNDS data to check if coords fall within
+    any known neighborhood bounding box.
+    """
+    dest_lower = destination.lower()
+
+    # Find city bounds data
+    city_bounds = None
+    for city_key, bounds in NEIGHBORHOOD_BOUNDS.items():
+        if city_key in dest_lower or dest_lower in city_key:
+            city_bounds = bounds
+            break
+
+    if not city_bounds:
+        return None
+
+    # Check each neighborhood's bounds
+    for hood_name, bounds in city_bounds.items():
+        if (bounds["sw_lat"] <= lat <= bounds["ne_lat"] and
+            bounds["sw_lng"] <= lng <= bounds["ne_lng"]):
+            # Return formatted name (title case)
+            return hood_name.replace("-", " ").title()
+
+    return None
+
+
 def get_neighborhood_airbnb_url(
     destination: str,
     neighborhood: str,
@@ -904,6 +938,23 @@ class AirbnbListing:
     review_count: int
     superhost: bool = False
     neighborhood: str = ""
+    lat: Optional[float] = None  # Latitude for neighborhood detection
+    lng: Optional[float] = None  # Longitude for neighborhood detection
+    destination: str = ""  # City name for neighborhood lookup
+
+    def detect_neighborhood(self) -> str:
+        """
+        Auto-detect neighborhood from coordinates if not already set.
+        Returns detected neighborhood name or empty string.
+        """
+        if self.neighborhood:
+            return self.neighborhood
+        if self.lat is not None and self.lng is not None and self.destination:
+            detected = detect_neighborhood_from_coords(self.destination, self.lat, self.lng)
+            if detected:
+                self.neighborhood = detected
+                return detected
+        return ""
 
     @property
     def review_quality_score(self) -> float:
@@ -937,11 +988,19 @@ class AirbnbListing:
 
 def rank_airbnb_listings(
     listings: List[AirbnbListing],
-    sort_by: str = "review_quality"  # "review_quality", "value", "price"
+    sort_by: str = "review_quality",  # "review_quality", "value", "price"
+    destination: str = ""  # City name for neighborhood detection
 ) -> List[AirbnbListing]:
     """
     Rank Airbnb listings by specified criteria.
+    Also auto-detects neighborhoods from coordinates if destination provided.
     """
+    # Auto-detect neighborhoods for all listings
+    for listing in listings:
+        if destination and not listing.destination:
+            listing.destination = destination
+        listing.detect_neighborhood()
+
     if sort_by == "review_quality":
         return sorted(listings, key=lambda x: x.review_quality_score, reverse=True)
     elif sort_by == "value":

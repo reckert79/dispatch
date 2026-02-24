@@ -1,4 +1,4 @@
-# Travel Search Skill v3.1
+# Travel Search Skill v3.2
 
 **Review-aware travel search** with sentiment analysis, neighborhood ranking, comparative analysis, and Airbnb quality scoring.
 
@@ -241,6 +241,12 @@ For other cities, neighborhood extraction uses pattern matching (less reliable).
 7. **Confidence depends on sample size**: 1 mention = "very low" confidence, 10+ = "high"
 
 ## Changelog
+
+### v3.2
+- Auto-detect Airbnb listing neighborhood from lat/lng coordinates
+- `detect_neighborhood_from_coords()` function for coordinate-based lookup
+- AirbnbListing now supports `lat`, `lng`, `destination` fields
+- Neighborhood auto-populated when ranking listings with coordinates
 
 ### v3.1
 - Neighborhood head-to-head comparison output

@@ -48,6 +48,7 @@ try:
         format_airbnb_ranking,
         compare_neighborhoods,
         get_neighborhood_airbnb_url,
+        detect_neighborhood_from_coords,
         AirbnbListing,
         rank_airbnb_listings,
         load_cached_reviews,
@@ -1117,6 +1118,11 @@ Config: ~/.config/travel-search/
             print(f"❌ Invalid JSON: {e}", file=sys_module.stderr)
             raise SystemExit(1)
 
+        # Get destination from input data or args
+        destination = listings_data.get("destination", "") if isinstance(listings_data, dict) else ""
+        if args.destination:
+            destination = args.destination
+
         listings = [
             AirbnbListing(
                 listing_id=l.get("listing_id", ""),
@@ -1125,12 +1131,16 @@ Config: ~/.config/travel-search/
                 rating=l.get("rating", 0.0),
                 review_count=l.get("review_count", 0),
                 superhost=l.get("superhost", False),
-                neighborhood=l.get("neighborhood", "")
+                neighborhood=l.get("neighborhood", ""),
+                lat=l.get("lat"),
+                lng=l.get("lng"),
+                destination=destination
             )
             for l in listings_data.get("listings", listings_data if isinstance(listings_data, list) else [])
         ]
 
-        ranked = rank_airbnb_listings(listings, sort_by="review_quality")
+        # Rank and auto-detect neighborhoods from coordinates
+        ranked = rank_airbnb_listings(listings, sort_by="review_quality", destination=destination)
 
         if args.json:
             output = [
